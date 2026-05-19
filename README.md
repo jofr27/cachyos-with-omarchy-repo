@@ -25,15 +25,11 @@ This script downloads the latest Omarchy repository, applies CachyOS-specific fi
 
 ### 1. Download the script
 
-```bash
-wget https://raw.githubusercontent.com/yourusername/yourrepo/main/install-omarchy-cachyos.sh -O install-omarchy-cachyos.sh
-
 
 2. Make it executable and run
 
-chmod +x install-omarchy-cachyos.sh
-./install-omarchy-cachyos.sh
-
+chmod +x omarchy-on-cachyos-installer.sh
+./omarchy-on-cachyos-installer.sh
 
 3. During installation
 
