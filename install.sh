@@ -1,369 +1,141 @@
 #!/bin/bash
-set -Eeuo pipefail
+# =====================================================
+# Omarchy on CachyOS - Stable Version + Full Fixes
+# =====================================================
 
-# =========================================================
-# Omarchy for CachyOS Installer
-# Local Stable Edition
-# =========================================================
+set -euo pipefail
 
-# Folder structure expected:
-#
-# omarchy-on-cachyos/
-# ├── install.sh
-# ├── omarchy/
-# └── bin/
-#     └── nvidia.sh
-#
-# =========================================================
+log() { echo -e "\033[1;32m[+]\033[0m $1"; }
+warn() { echo -e "\033[1;33m[!]\033[0m $1"; }
+error() { echo -e "\033[1;31m[ERROR]\033[0m $1"; exit 1; }
 
-# ---------------------------------------------------------
-# Colors
-# ---------------------------------------------------------
+echo "=================================================="
+echo "   Omarchy on CachyOS - Stable Installer"
+echo "=================================================="
 
-RED="\e[31m"
-GREEN="\e[32m"
-YELLOW="\e[33m"
-BLUE="\e[34m"
-RESET="\e[0m"
-
-log() {
-    echo -e "${BLUE}==>${RESET} $1"
-}
-
-ok() {
-    echo -e "${GREEN}==>${RESET} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}==>${RESET} $1"
-}
-
-fail() {
-    echo -e "${RED}Error:${RESET} $1"
-    exit 1
-}
-
-# ---------------------------------------------------------
-# Dependency checks
-# ---------------------------------------------------------
-
-for cmd in rsync sed find; do
-    command -v "$cmd" &>/dev/null || fail "$cmd is not installed"
-done
-
-# ---------------------------------------------------------
-# Paths
-# ---------------------------------------------------------
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-OMARCHY_SOURCE="$SCRIPT_DIR/omarchy"
-INSTALL_TARGET="$HOME/.local/share/omarchy"
-
-# ---------------------------------------------------------
-# Verify bundled Omarchy repo
-# ---------------------------------------------------------
-
-[[ -d "$OMARCHY_SOURCE" ]] \
-    || fail "Bundled Omarchy repo missing"
-
-[[ -f "$OMARCHY_SOURCE/install.sh" ]] \
-    || fail "Invalid Omarchy repo (install.sh missing)"
-
-ok "Using bundled Omarchy repository"
-
-# ---------------------------------------------------------
-# Install yay
-# ---------------------------------------------------------
-
-if ! command -v yay &>/dev/null; then
-
-    log "Installing yay..."
-
-    sudo pacman -S --needed --noconfirm \
-        git base-devel
-
-    TMP_DIR="$(mktemp -d)"
-
-    git clone https://aur.archlinux.org/yay.git \
-        "$TMP_DIR/yay" \
-        || fail "Failed to clone yay"
-
-    pushd "$TMP_DIR/yay" >/dev/null
-
-    makepkg -si --noconfirm \
-        || fail "Failed to build yay"
-
-    popd >/dev/null
-
-    rm -rf "$TMP_DIR"
-
-    command -v yay &>/dev/null \
-        || fail "yay installation failed"
-
-    ok "yay installed"
-
-else
-    ok "yay already installed"
+if [[ $EUID -eq 0 ]]; then
+    error "Do not run as root."
 fi
 
-# ---------------------------------------------------------
-# Configure stable Omarchy repo
-# ---------------------------------------------------------
+# ==================== WIRELESS REGDOM ====================
+log "Setting up Wireless Regulatory Domain..."
+sudo pacman -S --needed --noconfirm wireless-regdb
 
-log "Configuring stable Omarchy repository..."
+read -rp "Enter your country code (e.g. US, GB, DE, FR, IN, BR): " COUNTRY
+COUNTRY=${COUNTRY:-US}
+COUNTRY=$(echo "$COUNTRY" | tr '[:lower:]' '[:upper:]')
 
-sudo pacman-key --recv-keys F0134EE680CAC571
-sudo pacman-key --lsign-key F0134EE680CAC571
-
-# Remove existing Omarchy repo entries
-sudo sed -i '/^\[omarchy\]/,/^$/d' /etc/pacman.conf
-
-# Add stable repo
-sudo tee -a /etc/pacman.conf >/dev/null <<EOF
-
-[omarchy]
-SigLevel = Optional TrustAll
-Server = https://pkgs.omarchy.org/stable/\$arch
+sudo tee /etc/conf.d/wireless-regdom > /dev/null <<EOF
+WIRELESS_REGDOM="$COUNTRY"
 EOF
+sudo tee /etc/modprobe.d/regdom.conf > /dev/null <<EOF
+options cfg80211 ieee80211_regdom=$COUNTRY
+EOF
+sudo iw reg set "$COUNTRY" 2>/dev/null || true
 
-ok "Stable repository configured"
+# ==================== DOWNLOAD STABLE OMARCHY ====================
+log "Downloading latest **stable** Omarchy..."
 
-# ---------------------------------------------------------
-# Update system
-# ---------------------------------------------------------
+OMARCHY_DIR="$HOME/.local/share/omarchy"
+rm -rf "$OMARCHY_DIR"
 
-log "Updating system packages..."
+# Clone using the latest stable tag instead of dev branch
+git clone --depth 1 --branch "$(git ls-remote --tags --refs https://github.com/basecamp/omarchy.git | cut -d/ -f3- | sort -V | tail -n1)" \
+    https://github.com/basecamp/omarchy.git "$OMARCHY_DIR"
 
+if [ ! -d "$OMARCHY_DIR" ]; then
+    error "Failed to download Omarchy."
+fi
+
+log "✅ Stable Omarchy downloaded successfully."
+
+# ==================== GPU DETECTION ====================
+log "Detecting GPUs..."
+NVIDIA=0; AMD=0; INTEL=0
+lspci -d 10de: | grep -Eq "VGA|3D|Display" && { NVIDIA=1; log "✅ NVIDIA"; }
+lspci -d 1002: | grep -Eq "VGA|3D|Display" && { AMD=1;    log "✅ AMD"; }
+lspci | grep -Eq "VGA|3D|Display" | grep -qi intel && { INTEL=1; log "✅ Intel"; }
+
+# ==================== SYSTEM UPDATE & BASE ====================
+log "Updating system..."
 sudo pacman -Syu --noconfirm
 
-# ---------------------------------------------------------
-# Remove conflicting configs
-# ---------------------------------------------------------
-
-if [[ -f /etc/sddm.conf ]]; then
-    warn "Removing conflicting /etc/sddm.conf"
-    sudo rm -f /etc/sddm.conf
+if ! command -v yay &> /dev/null; then
+    log "Installing yay..."
+    sudo pacman -S --needed --noconfirm git base-devel
+    git clone https://aur.archlinux.org/yay.git /tmp/yay
+    (cd /tmp/yay && makepkg -si --noconfirm)
+    rm -rf /tmp/yay
 fi
 
-# ---------------------------------------------------------
-# User info
-# ---------------------------------------------------------
-
-echo
-read -rp "Enter username: " OMARCHY_USER_NAME
-export OMARCHY_USER_NAME
-
-echo
-read -rp "Enter email: " OMARCHY_USER_EMAIL
-export OMARCHY_USER_EMAIL
-
-# ---------------------------------------------------------
-# Prepare local working copy
-# ---------------------------------------------------------
-
-WORK_DIR="$(mktemp -d)"
-
-log "Preparing working copy..."
-
-rsync -a \
-    --exclude=".git" \
-    "$OMARCHY_SOURCE/" \
-    "$WORK_DIR/"
-
-cd "$WORK_DIR"
-
-# ---------------------------------------------------------
-# Apply CachyOS compatibility patches
-# ---------------------------------------------------------
-
-log "Applying CachyOS compatibility patches..."
-
-# Remove conflicting package
-sed -i '/^tldr$/d' install/omarchy-base.packages
-
-# ---------------------------------------------------------
-# Kernel detection fixes
-# ---------------------------------------------------------
-
-sed -i \
-"s/ | sed 's\/-arch\/\\\\.arch\/'//" \
-bin/omarchy-update-restart || true
-
-sed -i \
-"s/'{print \$2}'/'{print \$2 \"-\" \$1}' | sed 's\/-linux\/\/'/" \
-bin/omarchy-update-restart || true
-
-sed -i \
-'/linux-cachyos/ ! s/pacman -Q linux/pacman -Q linux-cachyos/' \
-bin/omarchy-update-restart || true
-
-# ---------------------------------------------------------
-# Remove problematic pacman hooks
-# ---------------------------------------------------------
-
-sed -i \
-'/run_logged \$OMARCHY_INSTALL\/preflight\/pacman\.sh/d' \
-install/preflight/all.sh || true
-
-sed -i \
-'/run_logged \$OMARCHY_INSTALL\/post-install\/pacman\.sh/d' \
-install/post-install/all.sh || true
-
-# ---------------------------------------------------------
-# Disable login/bootloader modifications
-# ---------------------------------------------------------
-
-for file in \
-    plymouth.sh \
-    limine-snapper.sh \
-    alt-bootloaders.sh
-do
-    sed -i \
-    "/run_logged \$OMARCHY_INSTALL\/login\/${file//./\\.}/d" \
-    install/login/all.sh || true
-done
-
-# ---------------------------------------------------------
-# Replace NVIDIA script
-# ---------------------------------------------------------
-
-if [[ -f "$SCRIPT_DIR/bin/nvidia.sh" ]]; then
-
-    log "Installing custom NVIDIA script..."
-
-    cp "$SCRIPT_DIR/bin/nvidia.sh" \
-        install/config/hardware/nvidia.sh
-
-    chmod +x install/config/hardware/nvidia.sh
-
-else
-    warn "Custom NVIDIA script not found"
+# Add Omarchy repo
+if ! grep -q '^\[omarchy\]' /etc/pacman.conf; then
+    log "Adding Omarchy repository..."
+    echo -e "\n[omarchy]\nSigLevel = Optional TrustedOnly\nServer = https://pkgs.omarchy.org/\$arch" | sudo tee -a /etc/pacman.conf > /dev/null
 fi
 
-# ---------------------------------------------------------
-# Make symlinks safe for reruns
-# ---------------------------------------------------------
+sudo pacman -Sy --noconfirm
+sudo pacman-key --recv-keys F0134EE680CAC571 2>/dev/null || true
+sudo pacman-key --lsign-key F0134EE680CAC571
 
-sed -i \
-'s/ln -s/ln -sf/g' \
-install/config/omarchy-ai-skill.sh || true
+# ==================== GPU DRIVERS ====================
+log "Installing GPU drivers..."
+sudo pacman -S --needed --noconfirm mesa vulkan-icd-loader lib32-mesa lib32-vulkan-icd-loader
 
-# ---------------------------------------------------------
-# Configure iwd backend
-# ---------------------------------------------------------
+if [[ $NVIDIA -eq 1 ]]; then
+    log "Setting up NVIDIA drivers..."
+    sudo pacman -Rdd --noconfirm linux-cachyos-nvidia-open nvidia-open-dkms 2>/dev/null || true
 
-NETWORK_FILE="install/config/hardware/network.sh"
-
-if ! grep -q "wifi.backend=iwd" "$NETWORK_FILE" 2>/dev/null; then
-
-cat >> "$NETWORK_FILE" <<'EOF'
-
-# Disable wpa_supplicant
-sudo systemctl disable --now wpa_supplicant.service 2>/dev/null || true
-
-# Configure NetworkManager for iwd
-if ! grep -q "wifi.backend=iwd" /etc/NetworkManager/NetworkManager.conf 2>/dev/null; then
-
-sudo tee -a /etc/NetworkManager/NetworkManager.conf >/dev/null <<INNER
-
-[device]
-wifi.backend=iwd
-INNER
-
-fi
-EOF
-
-fi
-
-# ---------------------------------------------------------
-# walker compatibility pin
-# ---------------------------------------------------------
-
-WALKER_FILE="install/config/walker-elephant.sh"
-
-if ! grep -q "Pin walker for compatibility" "$WALKER_FILE" 2>/dev/null; then
-
-cat >> "$WALKER_FILE" <<'EOF'
-
-# Pin walker for compatibility
-if ! grep -q "^IgnorePkg.*walker" /etc/pacman.conf 2>/dev/null; then
-
-    if grep -q "^IgnorePkg" /etc/pacman.conf; then
-        sudo sed -i \
-        's/^IgnorePkg = \(.*\)/IgnorePkg = \1 walker/' \
-        /etc/pacman.conf
+    if command -v chwd &> /dev/null; then
+        sudo chwd -r nvidia-open-dkms --noconfirm 2>/dev/null || true
+        sudo chwd -i nvidia-dkms || sudo pacman -S --needed --noconfirm nvidia-dkms nvidia-utils nvidia-settings lib32-nvidia-utils libva-nvidia-driver
     else
-        sudo sed -i \
-        '/^\[options\]/a IgnorePkg = walker' \
-        /etc/pacman.conf
+        sudo pacman -S --needed --noconfirm nvidia-dkms nvidia-utils nvidia-settings lib32-nvidia-utils
     fi
 
-fi
+    if [[ $INTEL -eq 1 ]]; then
+        sudo tee -a /etc/environment > /dev/null <<EOF
+__NV_PRIME_RENDER_OFFLOAD=1
+__GLX_VENDOR_LIBRARY_NAME=nvidia
+__VK_LAYER_NV_optimus=NVIDIA_only
 EOF
+    fi
 
+    mkdir -p ~/.config/uwsm
+    cat >> ~/.config/uwsm/env <<EOF
+export LIBVA_DRIVER_NAME=nvidia
+export GBM_BACKEND=nvidia-drm
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export NVD_BACKEND=direct
+EOF
 fi
 
-# ---------------------------------------------------------
-# Fix mise activation
-# ---------------------------------------------------------
+[[ $AMD -eq 1 ]] && sudo pacman -S --needed --noconfirm vulkan-radeon lib32-vulkan-radeon libva-mesa-driver
+[[ $INTEL -eq 1 ]] && sudo pacman -S --needed --noconfirm intel-media-driver vulkan-intel lib32-vulkan-intel
 
-sed -i \
-'s/omarchy-cmd-present mise && eval "\$(mise activate bash)"/if [ "\$SHELL" = "\/bin\/bash" ] \&\& command -v mise \&> \/dev\/null; then\
-  eval "\$(mise activate bash)"\
-elif [ "\$SHELL" = "\/bin\/fish" ] \&\& command -v mise \&> \/dev\/null; then\
-  mise activate fish | source\
-fi/' \
-config/uwsm/env || true
+# ==================== PATCHES ====================
+log "Applying CachyOS compatibility patches..."
+cd "$OMARCHY_DIR"
 
-ok "Compatibility patches applied"
-
-# ---------------------------------------------------------
-# Install Omarchy locally
-# ---------------------------------------------------------
-
-log "Installing Omarchy locally..."
-
-rm -rf "$INSTALL_TARGET"
-
-mkdir -p "$INSTALL_TARGET"
-
-rsync -a \
-    --exclude=".git" \
-    "$WORK_DIR/" \
-    "$INSTALL_TARGET/"
-
-cd "$INSTALL_TARGET"
-
-# ---------------------------------------------------------
-# Fix permissions
-# ---------------------------------------------------------
-
-log "Fixing script permissions..."
-
-find . -type f -name "*.sh" -exec chmod +x {} \;
-
-ok "Installation files prepared"
-
-# ---------------------------------------------------------
-# Final message
-# ---------------------------------------------------------
-
-echo
-echo "==============================================="
-echo " Omarchy CachyOS Setup Ready"
-echo "==============================================="
-echo
-echo "1. Stable Omarchy repo configured"
-echo "2. Local bundled Omarchy snapshot installed"
-echo "3. CachyOS compatibility patches applied"
-echo "4. NVIDIA handling replaced"
-echo "5. NetworkManager configured for iwd"
-echo "6. Bootloader modifications disabled"
-echo
-
-read -rp "Press ENTER to start installation..."
+sed -i '/tldr/d' install/omarchy-base.packages 2>/dev/null || true
+sed -i '/pacman\.sh/d' install/preflight/all.sh 2>/dev/null || true
+sed -i '/pacman\.sh/d' install/post-install/all.sh 2>/dev/null || true
+sed -i '/plymouth/d' install/login/all.sh 2>/dev/null || true
+sed -i '/limine-snapper/d' install/login/all.sh 2>/dev/null || true
+sed -i '/set-wireless-regdom/d' install/config/hardware/all.sh 2>/dev/null || true
 
 chmod +x install.sh
 
-exec ./install.sh
+echo ""
+echo "=================================================="
+echo "    Starting Omarchy (Stable) Installation"
+echo "=================================================="
+echo "Press Enter to continue..."
+read -r
+
+./install.sh
+
+echo ""
+log "✅ Installation finished!"
+log "Reboot your system now."
+echo "=================================================="

@@ -1,157 +1,131 @@
-# Omarchy CachyOS Local Installer
+# Omarchy on CachyOS Installer
 
-## ⚠️ IMPORTANT
+An automated installer script that makes it easy to install **Omarchy** on **CachyOS**.
 
-- **Do NOT install a Desktop Environment during CachyOS installation**
-- **Uncheck “CachyOS Shell Configuration” in the installer**
-- Install a minimal/base system only
+This script downloads the latest Omarchy repository, applies CachyOS-specific fixes, sets up GPU drivers, configures wireless regulatory domain, and skips known conflicting steps.
 
-Omarchy will handle:
-- Window manager
-- Shell setup
-- Terminal configuration
-- User environment
-- Themes and UI configuration
+## Features
 
-Using another desktop environment or CachyOS shell presets may cause:
-- Keybinding conflicts
-- Hyprland conflicts
-- Broken shell configs
-- Duplicate services
-- Theme inconsistencies
+- Automatically downloads the latest Omarchy from GitHub
+- Full GPU detection and driver setup (NVIDIA + AMD + Intel)
+- Proper NVIDIA setup using CachyOS `chwd` when available
+- PRIME render offload for hybrid Intel + NVIDIA laptops
+- Automatic Wireless Regulatory Domain setup
+- Skips known problematic scripts (`limine-snapper.sh`, `set-wireless-regdom.sh`, pacman conflicts, etc.)
+- Installs `yay` if not present
+- Adds official Omarchy repository
 
----
+## Requirements
 
-This project provides a **local, patched installer for Omarchy on CachyOS**.
-It uses a bundled Omarchy repository instead of cloning during installation for stability and reproducibility.
-
----
-
-## 📦 Folder Structure
-
-```text
-cachyos-with-omarchy-repo/
-├── install.sh
-├── omarchy/
-└── bin/
-    └── nvidia.sh
-```
-
----
-
-## ⚙️ What This Installer Does
-
-- Uses bundled Omarchy repository (no git clone during install)
-- Installs `yay` if missing
-- Configures Omarchy pacman repository
-- Applies CachyOS compatibility patches
-- Fixes kernel detection issues
-- Removes conflicting hooks and packages
-- Disables bootloader/login modifications
-- Configures NetworkManager with iwd
-- Pins walker for compatibility
-- Fixes mise activation
-- Replaces NVIDIA script (optional)
-
----
-
-## 🧰 Requirements
-
-- CachyOS / Arch-based system
-- sudo access
-- bash shell
+- Fresh or minimal **CachyOS** installation (recommended: Btrfs + Snapper)
 - Internet connection
-- rsync, git, base-devel (auto-installed if missing)
+- `sudo` privileges
 
----
+## How to Use
 
-## 🚀 Installation
-
-### 1. Prepare folder
-
-```text
-~/omarchy-on-cachyos-repo/
-```
-
-Ensure:
-- `install.sh` exists
-- `omarchy/` folder is included
-- optional `bin/nvidia.sh` exists
-
----
-
-### 2. Make executable
+### 1. Download the script
 
 ```bash
-chmod +x install.sh
-```
+wget https://raw.githubusercontent.com/yourusername/yourrepo/main/install-omarchy-cachyos.sh -O install-omarchy-cachyos.sh
 
----
 
-### 3. Run installer
+2. Make it executable and run
 
-```bash
-./install.sh
-```
+chmod +x install-omarchy-cachyos.sh
+./install-omarchy-cachyos.sh
 
----
 
-## 👤 User Input
+3. During installation
 
-You will be asked:
-- Username
-- Email
+You will be asked for your country code (for Wi-Fi). Examples: US, GB, DE, FR, IN, BR, etc.
+Press Enter when prompted to start the Omarchy installation.
 
----
+After Installation
 
-## 📁 Installation Path
+1. Reboot your system:
 
-```text
-~/.local/share/omarchy
-```
+reboot
 
----
 
-## 🔁 Re-run Support
+2. Check GPU status after reboot:
 
-- Safe to run multiple times
-- Uses temporary working directory
-- Overwrites previous install cleanly
+nvidia-smi                    # NVIDIA only
+glxinfo | grep "OpenGL renderer"
+iw reg get                    # Check wireless country code
 
----
+Troubleshooting
 
-## ⚠️ Notes
+Issue                       Solution
 
-- Modifies system configuration (`pacman.conf`, `NetworkManager`)
-- Requires sudo privileges
-- Designed specifically for CachyOS compatibility
+limine-snapper.sh failed    Script already skips this
+Wireless not working        Check country code with iw reg get
+NVIDIA not detected         Run `lspci -k
+Package conflicts           Script removes common conflicting packages
+Still failing               Run script again (it is safe to rerun)
 
----
 
-## 🧪 Troubleshooting
+Known Issues
 
-### Permission issues
+Limine bootloader: Skipped due to incompatibility with CachyOS bootloader system.
+Snapper + Limine integration: Not fully configured (CachyOS uses its own snapshot handling).
+NVIDIA: May require a reboot for full functionality. Sometimes needs manual chwd intervention.
+Hyprland: Some Omarchy-specific configs may be missing or need manual tweaking.
+First boot: Some themes/wallpapers might not apply correctly on first login.
+This is a compatibility layer — not all Omarchy features work perfectly on CachyOS.
 
-```bash
-sudo chown -R $USER:$USER ~/omarchy-on-cachyos-repo
-```
 
-### Missing repo files
 
-Ensure:
 
-```text
-omarchy/install.sh
-```
+Notes
 
-### yay issues
+This script is community maintained and not official.
+It heavily modifies Omarchy installation to work with CachyOS.
+NVIDIA users: Proprietary drivers are used by default.
+Always review scripts before running.
 
-```bash
-sudo pacman -S git base-devel
-```
 
----
+Credits
 
-## 📌 Summary
+Omarchy by basecamp
+CachyOS team
+Community testers
 
-Local, stable Omarchy installer for CachyOS with built-in compa
+
+Community Script — Not officially affiliated with Omarchy or CachyOS.
+Use at your own risk and always review scripts before running.
+Enjoy your setup! ✨
+
+
+FAQ
+
+Q: Can I run this on an existing CachyOS installation?
+A: Yes, but a fresh install is recommended for best results.
+Q: Does it support NVIDIA laptops?
+A: Yes. It automatically enables PRIME render offload for Intel + NVIDIA hybrid systems.
+Q: Why does it ask for country code?
+A: To properly configure Wi-Fi regulatory domain. Wrong code can limit Wi-Fi channels and performance.
+Q: What if the script fails halfway?
+A: You can safely run it again. It is designed to be re-runnable.
+Q: Will this install Hyprland?
+A: Yes, if you choose it during Omarchy installation.
+Q: Can I use the alpha/dev version instead?
+A: This script uses stable by default. You can change it manually if you want the latest development version.
+Q: How do I update Omarchy later?
+A: After installation, you can use Omarchy’s own update commands, but some patches may need to be reapplied.
+Q: Is this script official?
+A: No. It is a community script created to improve compatibility between Omarchy and CachyOQ: Can I run this on an existing CachyOS installation?
+A: Yes, but a fresh install is recommended for best results.
+Q: Does it support NVIDIA laptops?
+A: Yes. It automatically enables PRIME render offload for Intel + NVIDIA hybrid systems.
+Q: Why does it ask for country code?
+A: To properly configure Wi-Fi regulatory domain. Wrong code can limit Wi-Fi channels and performance.
+Q: What if the script fails halfway?
+A: You can safely run it again. It is designed to be re-runnable.
+Q: Will this install Hyprland?
+A: Yes, if you choose it during Omarchy installation.
+Q: Can I use the alpha/dev version instead?
+A: This script uses stable by default. You can change it manually if you want the latest development version.
+Q: How do I update Omarchy later?
+A: After installation, you can use Omarchy’s own update commands, but some patches may need to be reapplied.
+Q: Is this script official?
+A: No. It is a community script created to improve compatibility between Omarchy and CachyOSS
