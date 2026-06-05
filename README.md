@@ -92,36 +92,46 @@ Use at your own risk and always review scripts before running.
 Enjoy your setup! ✨
 
 
-FAQ
+## ❓ FAQ
 
-Q: Can I run this on an existing CachyOS installation?
+### 🧰 Installation & Compatibility
+
+**Q: Can I run this on an existing CachyOS installation?**  
 A: Yes, but a fresh install is recommended for best results.
-Q: Does it support NVIDIA laptops?
+
+**Q: Does it support NVIDIA laptops?**  
 A: Yes. It automatically enables PRIME render offload for Intel + NVIDIA hybrid systems.
-Q: Why does it ask for country code?
-A: To properly configure Wi-Fi regulatory domain. Wrong code can limit Wi-Fi channels and performance.
-Q: What if the script fails halfway?
-A: You can safely run it again. It is designed to be re-runnable.
-Q: Will this install Hyprland?
-A: Yes, if you choose it during Omarchy installation.
-Q: Can I use the alpha/dev version instead?
-A: This script uses stable by default. You can change it manually if you want the latest development version.
-Q: How do I update Omarchy later?
-A: After installation, you can use Omarchy’s own update commands, but some patches may need to be reapplied.
-Q: Is this script official?
-A: No. It is a community script created to improve compatibility between Omarchy and CachyOQ: Can I run this on an existing CachyOS installation?
-A: Yes, but a fresh install is recommended for best results.
-Q: Does it support NVIDIA laptops?
-A: Yes. It automatically enables PRIME render offload for Intel + NVIDIA hybrid systems.
-Q: Why does it ask for country code?
-A: To properly configure Wi-Fi regulatory domain. Wrong code can limit Wi-Fi channels and performance.
-Q: What if the script fails halfway?
-A: You can safely run it again. It is designed to be re-runnable.
-Q: Will this install Hyprland?
-A: Yes, if you choose it during Omarchy installation.
-Q: Can I use the alpha/dev version instead?
-A: This script uses stable by default. You can change it manually if you want the latest development version.
-Q: How do I update Omarchy later?
-A: After installation, you can use Omarchy’s own update commands, but some patches may need to be reapplied.
-Q: Is this script official?
-A: No. It is a community script created to improve compatibility between Omarchy and CachyOSS
+
+**Q: Will this install Hyprland?**  
+A: Yes, if you choose it during installation.
+
+---
+
+### ⚙️ Configuration
+
+**Q: Why does it ask for country code?**  
+A: To configure the Wi-Fi regulatory domain. Using the wrong code can limit available Wi-Fi channels and performance.
+
+**Q: Can I use the alpha/dev version instead?**  
+A: This script uses the stable version by default. You can switch to development versions manually if needed.
+
+---
+
+### 🔧 Stability
+
+**Q: What if the script fails halfway?**  
+A: You can safely run it again. The script is designed to be re-runnable.
+
+---
+
+### 🔄 Updates
+
+**Q: How do I update Omarchy later?**  
+A: After installation, use Omarchy’s update commands. Some patches may need to be reapplied manually.
+
+---
+
+### 📌 Notes
+
+**Q: Is this script official?**  
+A: No. It is a community project designed to improve compatibility between Omarchy and CachyOS.
