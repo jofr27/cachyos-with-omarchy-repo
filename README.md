@@ -80,11 +80,7 @@ NVIDIA users: Proprietary drivers are used by default.
 Always review scripts before running.
 
 
-Credits
 
-Omarchy by basecamp
-CachyOS team
-Community testers
 
 
 Community Script — Not officially affiliated with Omarchy or CachyOS.
