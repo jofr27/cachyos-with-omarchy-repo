@@ -68,12 +68,6 @@
 
 ### 1. Download the Installer
 
-```bash
-curl -LO https://example.com/omarchy-on-cachyos-installer.sh
-```
-
-Or manually download:
-
 ```text
 omarchy-on-cachyos-installer.sh
 ```
